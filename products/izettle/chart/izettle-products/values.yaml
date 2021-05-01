@@ -1,0 +1,31 @@
+name: izettle-products
+group: backend
+
+image:
+  repository: cowlingj/izettle-products.backend
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+secrets:
+  credentials:
+    nameOverride: null
+    exists: false
+    data:
+      credentials:
+        username: null
+        password: null
+        client_id: null
+        client_secret: null
+
+izettleEndpoints:
+  auth: https://oauth.izettle.com
+  products: https://products.izettle.com
+
+service:
+  nameOverride: products
+  type: ClusterIP
+  ports:
+    main:
+      port: 80

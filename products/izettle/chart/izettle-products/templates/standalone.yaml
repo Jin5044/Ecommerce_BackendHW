@@ -1,0 +1,125 @@
+{{- define "izettle-products.name" -}}
+  {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{- define "izettle-products.chart" -}}
+  {{- printf "%s-%s" .Chart.Name (.Chart.Version | replace "+" "_" ) -}}
+{{- end -}}
+
+{{- define "izettle-products.image" -}}
+  {{- printf "%s:%s" .repository .tag -}}
+{{- end -}}
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "izettle-products.name" . }}
+  labels:
+    app.kubernetes.io/version: {{ .Chart.AppVersion }}
+    app.kubernetes.io/name: {{ include "izettle-products.name" . }}
+    app.kubernetes.io/component: {{ .Values.group }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    helm.sh/chart: {{ include "izettle-products.chart" . }}
+spec:
+  replicas: {{ .Values.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "izettle-products.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/version: {{ .Chart.AppVersion }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "izettle-products.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/version: {{ .Chart.AppVersion }}
+    spec:
+      {{- if .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{ toYaml .Values.imagePullSecrets }}
+      {{- end }}
+      containers:
+        - name: main
+          image: {{ include "izettle-products.image" .Values.image }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: PORT
+              value: "80"
+            - name: HOST
+              value: "0.0.0.0"
+            - name: IZETTLE_CREDENTIALS_FILE
+              value: /etc/secrets/izettle/credentials.json
+            - name: IZETTLE_AUTH_URI
+              value: {{ .Values.izettleEndpoints.auth }}
+            - name: IZETTLE_PRODUCTS_URI
+              value: {{ .Values.izettleEndpoints.products }}
+          volumeMounts:
+            - name: izettle-credentials-volume
+              mountPath: /etc/secrets/izettle
+              readOnly: true
+          {{- if .Values.resources }}
+          resources:
+            {{ toYaml .Values.resources }}
+          {{- end }}
+          ports:
+            - containerPort: 80
+      volumes:
+        - name: izettle-credentials-volume
+          secret:
+            secretName: {{ include "izettle-products.name" (merge (dict "Values" (dict "nameOverride" .Values.secrets.credentials.nameOverride)) .) }}
+            items:
+              - key: credentials
+                path: credentials.json
+      {{- if .Values.readinessProbe }}
+      readinessProbe:
+          {{ toYaml .Values.readinessProbe }}
+      {{- end }}
+      {{- if .Values.livelinessProbe }}
+      livelinessProbe:
+          {{ toYaml .Values.livelinessProbe }}
+      {{- end }}
+      {{- if and (empty .Values.startupProbe) (ge (atoi .Capabilities.KubeVersion.Major) 1) (ge (atoi .Capabilities.KubeVersion.Minor) 16) }}
+      startupProbe:
+          {{ toYaml .Values.startupProbe }}
+      {{- end }}
+---
+{{- if not .Values.secrets.credentials.exists }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ include "izettle-products.name" (merge (dict "Values" (dict "nameOverride" .Values.secrets.credentials.nameOverride)) .) }}
+  labels:
+    app.kubernetes.io/version: {{ .Chart.AppVersion }}
+    app.kubernetes.io/name: {{ include "izettle-products.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    helm.sh/chart: {{ include "izettle-products.chart" . }}
+type: Opaque
+data:
+  {{ range $key, $value := .Values.secrets.credentials.data -}}
+      {{ $key }}: {{ $value | toJson | b64enc | quote }}
+  {{- end }}
+{{ end -}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "izettle-products.name" (merge (dict "Values" (dict "nameOverride" .Values.service.nameOverride)) .) }}
+  labels:
+    app.kubernetes.io/version: {{ .Chart.AppVersion }}
+    app.kubernetes.io/name: {{ include "izettle-products.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    helm.sh/chart: {{ include "izettle-products.chart" . }}
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    app.kubernetes.io/name: {{ include "izettle-products.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/version: {{ .Chart.AppVersion }}
+  ports:
+    - name: http
+      port: {{ .Values.service.ports.main.port }}
+      targetPort: 80
+      protocol: TCP
