@@ -1,3 +1,0 @@
-directive @sort(
-  pathKey: String
-) on FIELD_DEFINITION

@@ -1,5 +1,0 @@
-{
-  "exec": "NODE_ENV=development ts-node 'src/index.ts'",
-  "watch": [ "src" ],
-  "ext": "js,ts,json"
-}

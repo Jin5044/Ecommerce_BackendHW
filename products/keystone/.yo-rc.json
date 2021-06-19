@@ -1,7 +1,0 @@
-{
-  "@cowlingj/generator-ecommerce-backend-service": {
-    "docs.paths.helm": "chart/keystone-products/",
-    "docs.paths.app": "app/",
-    "docs.paths.out": "docs/"
-  }
-}

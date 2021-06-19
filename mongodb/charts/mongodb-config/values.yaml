@@ -1,5 +1,0 @@
-enabled: true
-name: mongodb-config
-group: data
-version: "0.0.1"
-rootPassword: null # generate random password

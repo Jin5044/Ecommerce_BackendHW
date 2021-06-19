@@ -1,9 +1,0 @@
-type StringValue {
-  id: ID!
-  value: String
-}
-
-extend type Query {
-  stringValue(id: ID!): StringValue
-  stringValues: [StringValue!]!
-}
